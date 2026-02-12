@@ -1,0 +1,80 @@
+version: "3.7"
+
+services:
+  naming-server:
+    image: 03155082725/md1-naming-server:0.0.1-SNAPSHOT
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    ports:
+      - "8761:8761"
+    networks:
+      - currency-network
+
+  zipkin-server:
+    image: openzipkin/zipkin:2.23
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    ports:
+      - "9411:9411"
+    networks:
+      - currency-network
+    restart: always
+
+  currency-exchange:
+    image: 03155082725/md1-currency-exchange-service:0.0.1-SNAPSHOT
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    ports:
+      - "8000:8000"
+    networks:
+      - currency-network
+    depends_on:
+      - naming-server
+      - zipkin-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://naming-server:8761/eureka
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin-server:9411/api/v2/spans
+
+  currency-conversion:
+    image: 03155082725/md1-currency-conversion-microservices:0.0.1-SNAPSHOT
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    ports:
+      - "8100:8100"
+    networks:
+      - currency-network
+    depends_on:
+      - naming-server
+      - zipkin-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://naming-server:8761/eureka
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin-server:9411/api/v2/spans
+
+  api-gateway:
+    image: 03155082725/md1-api-gateway:0.0.1-SNAPSHOT
+    deploy:
+      resources:
+        limits:
+          memory: 700M
+    ports:
+      - "8765:8765"
+    networks:
+      - currency-network
+    depends_on:
+      - naming-server
+      - zipkin-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://naming-server:8761/eureka
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin-server:9411/api/v2/spans
+
+networks:
+  currency-network:
+    driver: bridge
